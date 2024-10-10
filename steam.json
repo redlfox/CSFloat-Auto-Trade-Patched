@@ -1,0 +1,9 @@
+{
+    "csfloat_api_key": "ВАШ_CSFLOAT_API_KEY",
+    "steam_api_key": "ВАШ_STEAM_API_KEY",
+    "steam_id64": "ВАШ_STEAM_ID64",
+    "steam_login": "ВАШ_STEAM_LOGIN",
+    "steam_password": "ВАШ_STEAM_PASSWORD",
+    "shared_secret": "ВАШ_SHARED_SECRET",
+    "identity_secret": "ВАШ_IDENTITY_SECRET"
+}
