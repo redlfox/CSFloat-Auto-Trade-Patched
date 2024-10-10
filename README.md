@@ -1,0 +1,1 @@
+# CSFloat-Auto-Trade
