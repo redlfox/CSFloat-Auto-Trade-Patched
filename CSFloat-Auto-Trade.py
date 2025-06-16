@@ -1,7 +1,9 @@
 import asyncio
 import json
 import aiohttp
+import sys, time,os
 from pathlib import Path
+from aiohttp_socks.connector import ProxyConnector
 from aiosteampy import SteamClient, AppContext
 from aiosteampy.utils import get_jsonable_cookies
 from aiosteampy.helpers import restore_from_cookies
@@ -17,13 +19,20 @@ API_TRADES = "https://csfloat.com/api/v1/me/trades?state=queued,pending&limit=50
 API_ACCEPT_TRADE = "https://csfloat.com/api/v1/trades/{trade_id}/accept"  # Define the accept trade endpoint
 
 # Path to a file to save cookies, will be created at end of a script run if do not exist
-COOKIE_FILE = Path("cookies.json")
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 Edg/126.0.0.0"
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+COOKIE_FILE = Path(rf"{SCRIPT_DIR}/cookies.json")
+# print(str(COOKIE_FILE))
+# print(COOKIE_FILE)
+if COOKIE_FILE.is_file():
+	print("cookie file true")
+# time.sleep(10)
+# sys.exit()
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
 
 # Path to store processed trade IDs
-PROCESSED_TRADES_FILE = Path("processed_trades.json")
+PROCESSED_TRADES_FILE = Path(rf"{SCRIPT_DIR}/processed_trades.json")
 
-def load_steam_config(config_path='steam.json'):
+def load_steam_config(config_path=rf"{SCRIPT_DIR}/steam.json"):
     with open(config_path, 'r') as file:
         return json.load(file)
 
@@ -102,7 +111,7 @@ async def send_steam_trade(client: SteamClient, trade_id, buyer_steam_id=None, t
 
         # Проверка структуры предметов в инвентаре
         if not my_inv:
-            print("Ваш инвентарь пуст или не удалось его загрузить.")
+            print("Your inventory is empty or could not be loaded.")
             return False
 
         # Попытка найти предмет по asset_id
@@ -113,7 +122,8 @@ async def send_steam_trade(client: SteamClient, trade_id, buyer_steam_id=None, t
             item_to_give = next((item for item in my_inv if item.asset_id == asset_id), None)
 
         if not item_to_give:
-            print(f"Предмет с asset_id {asset_id} не найден в инвентаре.")
+            print(f"Item with asset_id {asset_id} not found in inventory.")
+            # print(f"Предмет с asset_id {asset_id} не найден в инвентаре.")
             return False
 
         # Вызов make_trade_offer с использованием Steam ID или Trade URL
@@ -187,7 +197,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: SteamGuardMi
     if user_info and user_info.get('actionable_trades', 0) > 0:
         print("Actionable trades found, fetching trade details...")
         trades_info = await get_trades(session, csfloat_api_key)
-
+        # print("asfasf.")#debug
+        # sys.exit()#debug
         if isinstance(trades_info, dict):
             trades_list = trades_info.get('trades', [])
 
@@ -267,7 +278,15 @@ async def check_actionable_trades(session, csfloat_api_key, client: SteamGuardMi
             print(f"Unexpected trades data format: {type(trades_info)}")
     else:
         print(f"No actionable trades at the moment. Waiting for {check_interval_minutes} minutes before next check.")
-
+def any2bool(v):
+  return str(v).lower() in ("yes", "true", "t", "1")
+def readConfigValue(configJson,jsonKey):
+    try:
+        jsonValue= configJson[jsonKey]
+    except Exception as err:
+        print(f"Couldn't load value from config file: {jsonKey}")
+    else:
+        return jsonValue
 async def main():
     config = load_steam_config()  # Загрузка конфигурации
 
@@ -278,14 +297,17 @@ async def main():
     steam_password = config['steam_password']
     shared_secret = config['shared_secret']
     identity_secret = config['identity_secret']
-
+    cilent_proxy = readConfigValue(config,'cilent_proxy')
+    steam_use_proxy = any2bool(readConfigValue(config,'steam_use_proxy')) # Acceptable true value: "yes", "true", "t", "y", "1"
+    if cilent_proxy:
+        print(f"proxy true: {cilent_proxy}")
     # Определение продолжительности ожидания (в минутах)
     CHECK_INTERVAL_MINUTES = 5  # Вы можете легко изменить это значение
 
     # Инициализация SteamClient с необходимыми аргументами
     class MySteamClient(SteamClient, SteamWebApiMixin, SteamGuardMixin):
         pass
-
+    # print(steam_use_proxy)
     client = MySteamClient(
         steam_id=steam_id,              # Steam ID64 как целое число
         username=steam_login,
@@ -295,19 +317,35 @@ async def main():
         api_key=steam_api_key,          # Передача API ключа
         user_agent=USER_AGENT,
     )
-
+    if cilent_proxy and steam_use_proxy==True:
+        MySteamClient.proxy=cilent_proxy
+        print("steam proxy true")
+        # print(client.proxy)
+    else:
+        print(f"steam proxy false")
+    # sys.exit()
     # Восстановление cookies, если они существуют
+
     if COOKIE_FILE.is_file():
-        with COOKIE_FILE.open("r") as f:
-            cookies = json.load(f)
-        await restore_from_cookies(cookies, client)
+        try:
+            with COOKIE_FILE.open("r") as f:
+                cookies = json.load(f)
+            await restore_from_cookies(cookies, client)
+        except Exception as err:
+            print(f"{err}")
+            await client.login()
     else:
         await client.login()
 
     # Загрузка обработанных трейдов
     processed_trades = load_processed_trades()
+
+    sessionConnector = ProxyConnector.from_url(cilent_proxy, ttl_dns_cache=300) if cilent_proxy else aiohttp.TCPConnector(
+        resolver=aiohttp.resolver.AsyncResolver(),
+        limit_per_host=50
+    )
     
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=sessionConnector) as session:
         try:
             while True:
                 await check_actionable_trades(
