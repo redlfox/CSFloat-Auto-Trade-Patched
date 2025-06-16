@@ -1,55 +1,58 @@
+- [русский](README_ru.md)
 
-## Шаг 1: Клонирование репозитория
+## Step 1: Clone the repository
 
-Сначала склонируйте репозиторий с GitHub на ваш локальный компьютер.
+First, clone the repository from GitHub to your local computer.
 
-1.  **Откройте терминал (Командную строку или PowerShell на Windows).**
+1.  **Open a terminal (Command Prompt or PowerShell on Windows).**
     
-2.  **Выполните команду:**
+2.  **Run the command:**
        
     `git clone https://github.com/gradinazz/CSFloat-Auto-Trade.git` 
             
-3.  **Перейдите в директорию проекта:**
+3.  **Go to the project directory:**
            
     `cd CSFloat-Auto-Trade` 
       
 
-## Шаг 2: Установка зависимостей
+## Step 2: Install Dependencies
 
-Установите необходимые пакеты, перечисленные в файле `requirements.txt`.
+Install the required packages listed in `requirements.txt`.
 
-1.  **Убедитесь, что находитесь в директории проекта и активировано виртуальное окружение.**
+1.  **Make sure you are in the project directory and the Python virtual environment is activated.**
     
-2.  **Выполните команду:**
+2.  **Run the command:**
       
     `pip install -r requirements.txt` 
       
 
-## Шаг 3: Конфигурация скрипта
+## Step 3: Script Configuration
 
-Перед запуском скрипта необходимо настроить конфигурационный файл `steam.json`.
+Before running the script, you need to configure the configuration file `steam.json`.
 
- -  **Отредактируйте файл `steam.json` в корне проекта.**
+ -  **Edit the `steam.json` file in the root of the project.**
     
- -  **Добавьте в него следующие параметры:**
+ -  **Add the following parameters to it:**
             
-    -   `csfloat_api_key`: Ваш API-ключ от CSFloat.
-    -   `steam_api_key`: Ваш Steam API-ключ.
-    -   `steam_id64`: Ваш Steam ID64 (например, `76561198034388123`).
-    -   `steam_login`: Ваш логин от Steam.
-    -   `steam_password`: Ваш пароль от Steam.
-    -   `shared_secret` и `identity_secret`: Секреты, необходимые для подтверждения торговых предложений. Их можно получить из maFile.
+    -   `csfloat_api_key`: Your CSFloat api key.
+    -   `steam_api_key`: Your Steam API-ключ.
+    -   `steam_id64`: Your Steam ID64 (example, `76561198034388123`).
+    -   `steam_login`: Your Steam username.
+    -   `steam_password`: Your Steam password.
+    -   `shared_secret` and `identity_secret`: Secrets needed to confirm trade offers. Can be obtained from maFile.
+    -   `cilent_proxy`: Optional, set the proxy.
+    -   `steam_use_proxy`: Optional, apply proxy for steam cilent if true.
     
-    **Важно:** Никогда не делитесь этими ключами и секретами. Храните их в безопасном месте.
+    **Important:** Never share these keys and secrets. Keep them in a safe place.
     
 
-## Шаг 4: Запуск скрипта
+## Step 4: Run the script
 
-Теперь вы готовы запустить скрипт.
+Now you are ready to run the script.
     
-1.  **Выполните команду:**
+1.  **Run the command:**
       
     `python CSFloat-Auto-Trade.py` 
       
-2.  **Скрипт начнёт выполнение и будет проверять наличие новых торговых предложений каждые 5 минут (по умолчанию).**
+2.  **The script will start executing and will check for new trade offers every 5 minutes (by default).**
     
