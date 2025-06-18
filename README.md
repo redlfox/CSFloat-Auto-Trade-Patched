@@ -34,14 +34,18 @@ Before running the script, you need to configure the configuration file `steam.j
     
  -  **Add the following parameters to it:**
             
-    -   `csfloat_api_key`: Your CSFloat api key.
-    -   `steam_api_key`: Your Steam API-ключ.
-    -   `steam_id64`: Your Steam ID64 (example, `76561198034388123`).
+    -   `csfloat_api_key`: Your CSFloat API key.
+    -   `steam_api_key`: Your Steam API key.
+    -   `steam_id64`: Your Steam ID64(example: `76561198034388123`).
     -   `steam_login`: Your Steam username.
     -   `steam_password`: Your Steam password.
     -   `shared_secret` and `identity_secret`: Secrets needed to confirm trade offers. Can be obtained from maFile.
-    -   `cilent_proxy`: Optional, set the proxy.
-    -   `steam_use_proxy`: Optional, apply proxy for steam cilent if true.
+    -   `cilent_proxy`: Optional: Set the proxy(example: `http://127.0.0.1:20122`).
+    -   `steam_use_proxy`: Optional: Apply proxy for steam cilent if setted to "true".
+    -   `check_interval_seconds`: Optional: Set the interval in seconds bewteen checks.
+    -   `check_interval_seconds_random`: Optional: Enable randomizing the interval bewteen checks if setted to "true".
+    -   `check_interval_seconds_random_min`: Optional: Set the minimum randomized interval in seconds bewteen checks.
+    -   `check_interval_seconds_random_max`: Optional: Set the maximum randomized interval in seconds bewteen checks.
     
     **Important:** Never share these keys and secrets. Keep them in a safe place.
     
