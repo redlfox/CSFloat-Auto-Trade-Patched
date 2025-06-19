@@ -40,7 +40,7 @@ Before running the script, you need to configure the configuration file `steam.j
     -   `steam_login`: Your Steam username.
     -   `steam_password`: Your Steam password.
     -   `shared_secret` and `identity_secret`: Secrets needed to confirm trade offers. Can be obtained from maFile.
-    -   `cilent_proxy`: Optional: Set the proxy(example: `http://127.0.0.1:20122`).
+    -   `client_proxy`: Optional: Set the proxy(example: `http://127.0.0.1:7890`).
     -   `steam_use_proxy`: Optional: Apply proxy for steam cilent if setted to "true".
     -   `check_interval_seconds`: Optional: Set the interval in seconds bewteen checks.
     -   `check_interval_seconds_random`: Optional: Enable randomizing the interval bewteen checks if setted to "true".
@@ -58,5 +58,5 @@ Now you are ready to run the script.
       
     `python CSFloat-Auto-Trade.py` 
       
-2.  **The script will start executing and will check for new trade offers every 5 minutes (by default).**
+2.  **The script will start executing and will check for new trade offers every 10 minutes (by default).**
     

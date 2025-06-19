@@ -2,6 +2,7 @@ import asyncio
 import json
 import aiohttp
 import os,random
+# from decimal import *
 from pathlib import Path
 from aiohttp_socks.connector import ProxyConnector
 from aiosteampy import SteamClient, AppContext
@@ -35,12 +36,8 @@ API_ACCEPT_TRADE = "https://csfloat.com/api/v1/trades/{trade_id}/accept"  # Defi
 # Path to a file to save cookies, will be created at end of a script run if do not exist
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 COOKIE_FILE = Path(rf"{SCRIPT_DIR}/cookies.json")
-# print(str(COOKIE_FILE))
-# print(COOKIE_FILE)
-if COOKIE_FILE.is_file():
-	print("cookie file true")
-# time.sleep(10)
-# sys.exit()
+# if COOKIE_FILE.is_file():
+
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
 
 # Path to store processed trade IDs
@@ -59,6 +56,7 @@ async def restore_from_cookies_retry(cookies: JSONABLE_COOKIE_JAR, steam_client:
     while True:
         try:
             await restore_from_cookies(cookies, steam_client)
+            print("Restored Steam session from the cookie file.")
             print(f"Loaded Steam account: {steam_client.username}")
             return
         except aiohttp.ClientResponseError as http_err:
@@ -71,7 +69,7 @@ async def restore_from_cookies_retry(cookies: JSONABLE_COOKIE_JAR, steam_client:
         if try_count >5:
             print("Failed too many times.")
             return None
-        await asyncio.sleep(50)
+        await asyncio.sleep(5)
 
 async def steam_client_login_retry(steam_client: "SteamClientBase"):
     try_count=0
@@ -90,7 +88,7 @@ async def steam_client_login_retry(steam_client: "SteamClientBase"):
         if try_count >5:
             print("Failed too many times.")
             return None
-        await asyncio.sleep(50)
+        await asyncio.sleep(5)
         
 async def confirm_trade_offer_retry(steam_client: "SteamClientBase", obj: int | TradeOffer):
     try_count=0
@@ -109,7 +107,7 @@ async def confirm_trade_offer_retry(steam_client: "SteamClientBase", obj: int | 
         if try_count >5:
             print("Failed too many times.")
             return None
-        await asyncio.sleep(50)
+        await asyncio.sleep(5)
 
 def load_processed_trades():
     if PROCESSED_TRADES_FILE.is_file():
@@ -158,7 +156,7 @@ async def get_trades(session, csfloat_api_key):
         try_count+=1
         if try_count >5:
             return None
-        await asyncio.sleep(50)
+        await asyncio.sleep(5)
 
 async def accept_trade(session, csfloat_api_key, trade_id, trade_token):
     url = API_ACCEPT_TRADE.format(trade_id=trade_id)
@@ -188,111 +186,117 @@ async def accept_trade(session, csfloat_api_key, trade_id, trade_token):
     return False
 
 async def csfloat_send_steam_trade(client: SteamClient, trade_id, buyer_steam_id=None, trade_url=None, asset_id=None, trade_token=None):
-    try:
+    # Определение контекста игры, например, CS2
+    game_context = AppContext.CS2  # Убедитесь, что это правильный контекст для вашего предмета
 
-        # Определение контекста игры, например, CS2
-        game_context = AppContext.CS2  # Убедитесь, что это правильный контекст для вашего предмета
-
-        # Получение вашего инвентаря
-        my_inv, _, _ = await client.get_inventory(game_context,count=2000)
-
-        # Проверка структуры предметов в инвентаре
-        if not my_inv:
-            print("Your inventory is empty or could not be loaded.")
-            return False
-        
-         #wip compare to history offers
-
-        # Попытка найти предмет по asset_id
-        asset_id = list(asset_id)
-        if not asset_id:  #if all items to trade on csfloat are already included in created trade offers.
-            print("Nothing to give for trade offer.")
-            return False
-        asset_id_len=len(asset_id)
-        # print(f"asset_id {asset_id}")
-        print(f"asset_id_len {asset_id_len}")
-        items_to_give=[]
+    # Попытка найти предмет по asset_id
+    asset_id = list(asset_id)
+    if not asset_id:  #if all items to trade on csfloat are already included in created trade offers.
+        print("Nothing to give for trade offer.")
+        return False
+    
+    retryCount=0
+    while True:
         try:
-            for tai in asset_id:
-                items_to_give.append(next((item for item in my_inv if item.asset_id == tai)))
-            # items_to_give = list((item for item in my_inv if item.asset_id == asset_id))
-            items_to_give_len=len(items_to_give)
-            # print(f"items_to_give {items_to_give}")
-            print(f"items_to_give_len {items_to_give_len}")
+            # Получение вашего инвентаря
+            my_inv, _, _ = await client.get_inventory(game_context,count=2000)
+
+            # Проверка структуры предметов в инвентаре
+            if not my_inv:
+                print("Your inventory is empty or could not be loaded.")
+                return False
             
-            if asset_id_len!=items_to_give_len:
-                print("Can't find all items to give.")
+            #wip compare to history offers
+
+            asset_id_len=len(asset_id)
+            # print(f"asset_id {asset_id}")
+            print(f"asset_id_len {asset_id_len}")
+            items_to_give=[]
+            try:
+                for tai in asset_id:
+                    items_to_give.append(next((item for item in my_inv if item.asset_id == tai)))
+                # items_to_give = list((item for item in my_inv if item.asset_id == asset_id))
+                items_to_give_len=len(items_to_give)
+                # print(f"items_to_give {items_to_give}")
+                print(f"items_to_give_len {items_to_give_len}")
+                
+                if asset_id_len!=items_to_give_len:
+                    print("Can't find all items to give.")
+                    return False
+
+            except ValueError:
+                # items_to_give = next((item for item in my_inv if item.asset_id == asset_id), None)
+                pass
+
+            if not items_to_give: #wip find missing items
+                if asset_id_len==1:
+                    print(f"Item with asset_id {asset_id} not found in the inventory.")
+                else:
+                    print(f"Item with asset_id {asset_id[0]} and {asset_id_len-1} other items not found in the inventory.")
+                # print(f"Предмет с asset_id {asset_id} не найден в инвентаре.")
+                return False
+            if items_to_give_len>1:
+                trades_num_other=items_to_give_len-1
+                offer_message=f"CSFloat Market Trade Offer #{trade_id} and {trades_num_other} other items Thanks for using CSFloat!"
+            else:
+                offer_message=f"CSFloat Market Trade Offer #{trade_id}. Thanks for using CSFloat!"
+            print(f"trade_id {trade_id} buyer_steam_id {buyer_steam_id} trade_url {trade_url} asset_id {asset_id} trade_token {trade_token} offer_message {offer_message}")
+            # return #debug
+            # Вызов make_trade_offer с использованием Steam ID или Trade URL
+            if trade_url:
+                # Отправка через трейд-ссылку
+                offer_id = await client.make_trade_offer(
+                    trade_url,                     # Трейд-ссылка как первый позиционный аргумент
+                    to_give=items_to_give,
+                    to_receive=[],
+                    message=offer_message,
+                    confirm=False #debug
+                )
+            elif buyer_steam_id:
+                # Отправка через Steam ID партнёра
+                if trade_token:
+                    offer_id = await client.make_trade_offer(
+                        buyer_steam_id,              # Steam ID партнёра как первый позиционный аргумент
+                        to_give=items_to_give,
+                        to_receive=[],
+                        message=offer_message,
+                        token=trade_token,             # Передача trade_token, если требуется
+                        confirm=False #debug
+                    )
+                else:
+                    offer_id = await client.make_trade_offer(
+                        buyer_steam_id,              # Steam ID партнёра как первый позиционный аргумент
+                        to_give=items_to_give,
+                        to_receive=[],
+                        message=offer_message,
+                        confirm=False #debug
+                    )
+            else:
+                print("It is necessary to specify either buyer_steam_id or trade_url.")
                 return False
 
-        except ValueError:
-            # items_to_give = next((item for item in my_inv if item.asset_id == asset_id), None)
-            pass
-
-        if not items_to_give: #wip find missing items
-            if asset_id_len==1:
-                print(f"Item with asset_id {asset_id} not found in the inventory.")
+            if offer_id:
+                print(f"Trade offer {trade_id} sent!")
+                return offer_id  # Возвращаем offer_id для дальнейшей обработки
             else:
-                print(f"Item with asset_id {asset_id[0]} and {asset_id_len-1} other items not found in the inventory.")
-            # print(f"Предмет с asset_id {asset_id} не найден в инвентаре.")
-            return False
-        if items_to_give_len>1:
-            trades_num_other=items_to_give_len-1
-            offer_message=f"CSFloat Market Trade Offer #{trade_id} and {trades_num_other} other items Thanks for using CSFloat!"
-        else:
-            offer_message=f"CSFloat Market Trade Offer #{trade_id}. Thanks for using CSFloat!"
-        print(f"trade_id {trade_id} buyer_steam_id {buyer_steam_id} trade_url {trade_url} asset_id {asset_id} trade_token {trade_token} offer_message {offer_message}")
-        # return #debug
-        # Вызов make_trade_offer с использованием Steam ID или Trade URL
-        if trade_url:
-            # Отправка через трейд-ссылку
-            offer_id = await client.make_trade_offer(
-                trade_url,                     # Трейд-ссылка как первый позиционный аргумент
-                to_give=items_to_give,
-                to_receive=[],
-                message=offer_message,
-                confirm=False #debug
-            )
-        elif buyer_steam_id:
-            # Отправка через Steam ID партнёра
-            if trade_token:
-                offer_id = await client.make_trade_offer(
-                    buyer_steam_id,              # Steam ID партнёра как первый позиционный аргумент
-                    to_give=items_to_give,
-                    to_receive=[],
-                    message=offer_message,
-                    token=trade_token,             # Передача trade_token, если требуется
-                    confirm=False #debug
-                )
-            else:
-                offer_id = await client.make_trade_offer(
-                    buyer_steam_id,              # Steam ID партнёра как первый позиционный аргумент
-                    to_give=items_to_give,
-                    to_receive=[],
-                    message=offer_message,
-                    confirm=False #debug
-                )
-        else:
-            print("Необходимо указать либо buyer_steam_id, либо trade_url.")
-            return False
+                print("It was not possible to send a trade offer.")
+                return False
 
-        if offer_id:
-            print(f"Торговое предложение {trade_id} отправлено!")
-            return offer_id  # Возвращаем offer_id для дальнейшей обработки
-        else:
-            print("Не удалось отправить торговое предложение.")
-            return False
-
-    except aiohttp.ClientResponseError as http_err:
-        print(f"HTTP error occurred while sending trade offer: {http_err}")
-    except ConnectionError as connect_err:
-        print(f"connection error occurred while sending trade offer: {connect_err}")
-    except Exception as e:
-        print(f"An error occurred while sending trade offer: {e}")
-    return False
+        except aiohttp.ClientResponseError as http_err:
+            print(f"HTTP error occurred while sending trade offer: {http_err}")
+        except ConnectionError as connect_err:
+            print(f"connection error occurred while sending trade offer: {connect_err}")
+        except Exception as e:
+            print(f"An error occurred while sending trade offer: {e}")
+        retryCount+=1
+        if retryCount >5:
+            print("Failed too many times.")
+            return None
+        await asyncio.sleep(5)
 
 # Функция подтверждения трейдов, если требуется
 async def confirm_trade(client: SteamGuardMixin):
-    return#debug
+    # breakpoint()#debug
     try:
         confirmations = await client.get_confirmations()
 
@@ -333,9 +337,9 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
         # sys.exit()#debug
         trades_list_sell=await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)
         if trades_list_sell:
-            # return#debug
+            # breakpoint()#debug
             # print(trades_list_sell)#debug
-            buyer_id_n_market_hash_name=[]
+            # buyer_id_n_market_hash_name=[]
             index_excluded=[]
             offer_maker=[]
             trades_list_sell_to_accept=list(filter(lambda c: not c.get('accepted_at'), trades_list_sell))
@@ -344,7 +348,6 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                 trades_list_sell_to_accept_processing=trades_list_sell_to_accept
                 trades_accept_loop_count=0
                 while True:
-                    # print("asfdsgsd.")
                     if trades_accept_loop_count>8:
                         print(f"trades_accept looped more than {trades_accept_loop_count} times. Stop for this check.")
                         return
@@ -357,9 +360,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                             break
 
                     if isinstance(trades_list_sell_to_accept, list):
-                        # print("afsfsdsdf.")
                         for trade in trades_list_sell_to_accept:
-                            # print("asfsdggs.")
                             if isinstance(trade, dict):
                                 trade_id = trade.get('id')
                                 seller_id = int(trade.get('seller_id'))  # ID отправителя
@@ -368,10 +369,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                                 trade_token = trade.get('trade_token')  # Получаем trade_token
                                 trade_url = trade.get('trade_url')      # Получаем trade_url
                                 trade_state = trade.get('state')        # Получаем состояние трейда
-                                # print("sgdgdfasd.")
                                 if trade_id and seller_id and buyer_id and asset_id:
                                     print(f"Trade {trade_id} is a sold trade.")
-                                    # print(f"Trade {trade_id} is a sold trade.")
                                     # continue#debug
 
                                     print(f"Accepting trade {trade_id}...")
@@ -384,24 +383,19 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
 
                                     else:
                                         print(f"Failed to accept trade {trade_id}")
-                            # print("asasfsf.")
-                            await asyncio.sleep(0.23)
-                            # await asyncio.sleep(230)
-                            print("sdgsdgsgd.")
+                            await asyncio.sleep(0.23) #0.23
                         if not trades_list_sell_to_accept_processing:
                             print("All accetable trade accepted.")
                             break        
                         else:
                             trades_list_sell_to_accept=trades_list_sell_to_accept_processing
                             trades_accept_loop_count+=1
-                            print("asfsdggs.")
+                            print(f"Can't accept all trades. Retrying: {trades_accept_loop_count}.")
                     else:
                         print(f"Unexpected trades list format: {type(trades_list_sell)}")
-
+                
+                await asyncio.sleep(25)
             
-            # print("assgdfdf.")
-            # await asyncio.sleep(50000)
-            # print("asfgdfd.")
             trades_list_sell_accepted=list(filter(lambda c: c.get('accepted_at'), await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)))
             if trades_list_sell_accepted:
                 for i in range(len(trades_list_sell_accepted)):
@@ -412,27 +406,26 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                                 asset_id_list_temp.append(int(trades_list_sell_accepted[ii]["contract"]["item"]["asset_id"]))
                                 index_excluded.append(ii)
                         offer_maker.append({"trade_id":int(trades_list_sell_accepted[i]["id"]),"buyer_id":int(trades_list_sell_accepted[i]["buyer_id"]),"seller_id":int(trades_list_sell_accepted[i]["seller_id"]),"asset_id":asset_id_list_temp,"trade_token":trades_list_sell_accepted[i]["trade_token"],"trade_url":trades_list_sell_accepted[i]["trade_url"],"accepted_at":trades_list_sell_accepted[i].get('accepted_at'),"trade_state":trades_list_sell_accepted[i]["state"]})
-                        print(index_excluded)
-                print(offer_maker)
+                        # print(index_excluded)
+                # print(offer_maker)
             else:
                 return None
             retryCount=0
             while True:
                 try:
                     sentto, _, next_cursorvar = await client.get_trade_offers(active_only=False,received=False)
+                    break
                 except aiohttp.ClientResponseError as http_err:
                     print(f"HTTP error occurred while fetching Steam trade offers sent: {http_err}")
                 except ConnectionError as connect_err:
                     print(f"connection error occurred while fetching Steam trade offers sent: {connect_err}")
                 except Exception as err:
                     print(f"Other error occurred while fetching Steam trade offers sent: {err}")
-                else:
-                    break
                 retryCount+=1
                 if retryCount >5:
                     print("Failed too many times.")
                     return None
-                await asyncio.sleep(50)
+                await asyncio.sleep(5)
             for omi in range(len(offer_maker)):
             # for omi in offer_maker:
                 asset_id_sent=[]
@@ -459,8 +452,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                 if asset_id_sent:
                     for i in asset_id_sent:
                         offer_maker[omi]["asset_id"]=list(filter(lambda c: c!=i,offer_maker[omi]["asset_id"]))
-                # if not offer_maker[omi]["asset_id"]:
-                print(offer_maker[omi]["asset_id"])
+                # if not offer_maker[omi]["asset_id"]: # Empty asset_id detection already implemented in function "csfloat_send_steam_trade"
+                # print(offer_maker[omi]["asset_id"])#debug
             print(offer_maker)
             # for item in trades_list_sell_accepted:
             # extItem={"buyer_id":item['buyer_id'],"market_hash_name":item["contract"]["item"]["market_hash_name"],}
@@ -573,7 +566,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
             else:
                 print(f"Unexpected trade maker list format: {type(offer_maker)}")
         else:
-            print("No actionable sold trades at the moment.")
+            print(f"No actionable sold trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
+        print(f"No actionable trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
     else:
         print(f"No actionable trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
 def any2bool(v):
@@ -595,18 +589,23 @@ async def main():
     steam_password = config['steam_password']
     shared_secret = config['shared_secret']
     identity_secret = config['identity_secret']
-    cilent_proxy = readConfigValue(config,'cilent_proxy')
+    client_proxy = readConfigValue(config,'client_proxy')
     steam_use_proxy = any2bool(readConfigValue(config,'steam_use_proxy')) # Acceptable true value: "yes", "true", "t", "y", "1"
-    if cilent_proxy:
-        print(f"proxy true: {cilent_proxy}")
+    if client_proxy:
+        print(f"proxy true: {client_proxy}")
     # Определение продолжительности ожидания (в минутах)
     check_interval_seconds_random = any2bool(config.get('check_interval_seconds_random'))
     if check_interval_seconds_random:
-        check_interval_seconds_random_min=config.get('check_interval_seconds_random_min')
+        check_interval_seconds_random_min=config.get('check_interval_seconds_random_min') # converting to 'decimal.Decimal' causes the problem.
         check_interval_seconds_random_max=config.get('check_interval_seconds_random_max')
+        if check_interval_seconds_random_min>check_interval_seconds_random_max:
+            check_interval_seconds_random=False
+            print(f"Error: \"check_interval_seconds_random_min\" is greater than \"check_interval_seconds_random_max\". Restoring default check interval value.")
+    # check_interval_seconds=config.get('check_interval_seconds')
+    # check_interval_seconds=Decimal(config.get('check_interval_seconds'))
     check_interval_seconds=config.get('check_interval_seconds')
     if not check_interval_seconds:
-        check_interval_seconds = 700  # Вы можете легко изменить это значение
+        check_interval_seconds = 600  # Вы можете легко изменить это значение
     # print(steam_use_proxy)
     client = MySteamClient(
         steam_id=steam_id,              # Steam ID64 как целое число
@@ -617,13 +616,12 @@ async def main():
         api_key=steam_api_key,          # Передача API ключа
         user_agent=USER_AGENT,
     )
-    if cilent_proxy and steam_use_proxy:
-        MySteamClient.proxy=cilent_proxy
+    if client_proxy and steam_use_proxy:
+        MySteamClient.proxy=client_proxy
         print("steam proxy true")
         # print(client.proxy)
     else:
         print("steam proxy false")
-    # sys.exit()
     # Восстановление cookies, если они существуют
 
 
@@ -634,14 +632,14 @@ async def main():
             await restore_from_cookies_retry(cookies, client)
         except Exception as err:
             print(f"{err}")
-            await steam_client_login_retry(client) #wip fix 502 errors
+            await steam_client_login_retry(client)
     else:
         await steam_client_login_retry(client)
 
     # Загрузка обработанных трейдов
     processed_trades = load_processed_trades()
 
-    sessionConnector = ProxyConnector.from_url(cilent_proxy, ttl_dns_cache=300) if cilent_proxy else aiohttp.TCPConnector(
+    sessionConnector = ProxyConnector.from_url(client_proxy, ttl_dns_cache=300) if client_proxy else aiohttp.TCPConnector(
         resolver=aiohttp.resolver.AsyncResolver(),
         limit_per_host=50
     )
@@ -650,8 +648,11 @@ async def main():
         try:
             while True:
                 if check_interval_seconds_random:
+                    # print(f"check_interval_seconds: {type(check_interval_seconds_random_min)}")
+                    # print(f"check_interval_seconds: {type(check_interval_seconds_random_max)}")
+                    # breakpoint()
                     check_interval_seconds=round(random.uniform(check_interval_seconds_random_min, check_interval_seconds_random_max),4)
-                    print(f"check_interval_seconds: {check_interval_seconds}")
+                # print(f"check_interval_seconds: {check_interval_seconds} {type(check_interval_seconds)}")
                 await check_actionable_trades(
                     session,
                     csfloat_api_key,

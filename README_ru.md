@@ -39,8 +39,12 @@
     -   `steam_login`: Ваш логин от Steam.
     -   `steam_password`: Ваш пароль от Steam.
     -   `shared_secret` и `identity_secret`: Секреты, необходимые для подтверждения торговых предложений. Их можно получить из maFile.
-    -   `cilent_proxy`: Необязательно: Установите прокси.
+    -   `client_proxy`: Необязательно: Установите прокси (например, `http://127.0.0.1:7890`).
     -   `steam_use_proxy`: Необязательно: Применить прокси для Steam cilent, если true.
+    -   `check_interval_seconds`: Optional: Set the interval in seconds bewteen checks.
+    -   `check_interval_seconds_random`: Optional: Enable randomizing the interval bewteen checks if setted to "true".
+    -   `check_interval_seconds_random_min`: Optional: Set the minimum randomized interval in seconds bewteen checks.
+    -   `check_interval_seconds_random_max`: Optional: Set the maximum randomized interval in seconds bewteen checks.
     
     **Важно:** Никогда не делитесь этими ключами и секретами. Храните их в безопасном месте.
     
@@ -53,5 +57,5 @@
       
     `python CSFloat-Auto-Trade.py` 
       
-2.  **Скрипт начнёт выполнение и будет проверять наличие новых торговых предложений каждые 5 минут (по умолчанию).**
+2.  **Скрипт начнёт выполнение и будет проверять наличие новых торговых предложений каждые 10 минут (по умолчанию).**
     
