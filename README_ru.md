@@ -40,6 +40,7 @@
     -   `steam_password`: Ваш пароль от Steam.
     -   `shared_secret` и `identity_secret`: Секреты, необходимые для подтверждения торговых предложений. Их можно получить из maFile.
     -   `client_proxy`: Необязательно: Установите прокси (например, `http://127.0.0.1:7890`).
+    -   `user_agent`: Optional: Set the user agent. The default value is "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0".
     -   `steam_use_proxy`: Необязательно: Применить прокси для Steam cilent, если true.
     -   `check_interval_seconds`: Optional: Set the interval in seconds bewteen checks.
     -   `check_interval_seconds_random`: Optional: Enable randomizing the interval bewteen checks if setted to "true".

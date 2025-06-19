@@ -38,8 +38,6 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 COOKIE_FILE = Path(rf"{SCRIPT_DIR}/cookies.json")
 # if COOKIE_FILE.is_file():
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
-
 # Path to store processed trade IDs
 PROCESSED_TRADES_FILE = Path(rf"{SCRIPT_DIR}/processed_trades.json")
 
@@ -614,6 +612,11 @@ async def main():
     if not check_interval_seconds:
         check_interval_seconds = 600  # Вы можете легко изменить это значение
     # print(steam_use_proxy)
+    user_agent=config.get('user_agent')
+    if not user_agent:
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
+    print(f"User agent: {user_agent}")
+    # breakpoint()
     client = MySteamClient(
         steam_id=steam_id,              # Steam ID64 как целое число
         username=steam_login,
@@ -621,7 +624,7 @@ async def main():
         shared_secret=shared_secret,
         identity_secret=identity_secret,
         api_key=steam_api_key,          # Передача API ключа
-        user_agent=USER_AGENT,
+        user_agent=user_agent,
     )
     if client_proxy and steam_use_proxy:
         MySteamClient.proxy=client_proxy

@@ -41,6 +41,7 @@ Before running the script, you need to configure the configuration file `steam.j
     -   `steam_password`: Your Steam password.
     -   `shared_secret` and `identity_secret`: Secrets needed to confirm trade offers. Can be obtained from maFile.
     -   `client_proxy`: Optional: Set the proxy(example: `http://127.0.0.1:7890`).
+    -   `user_agent`: Optional: Set the user agent. The default value is "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0".
     -   `steam_use_proxy`: Optional: Apply proxy for steam cilent if setted to "true".
     -   `check_interval_seconds`: Optional: Set the interval in seconds bewteen checks.
     -   `check_interval_seconds_random`: Optional: Enable randomizing the interval bewteen checks if setted to "true".
