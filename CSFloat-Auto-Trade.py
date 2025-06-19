@@ -332,10 +332,11 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
     # print(user_info)#debug
         
     if user_info and user_info.get('actionable_trades', 0) > 0:
-        print("Actionable trades found, fetching trade details...")
+        print("Unfinished trades found, fetching trade details...")
         # print(trades_info)#debug
         # sys.exit()#debug
         trades_list_sell=await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)
+        # print(trades_list_sell)#debug
         if trades_list_sell:
             # breakpoint()#debug
             # print(trades_list_sell)#debug
@@ -348,6 +349,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                 trades_list_sell_to_accept_processing=trades_list_sell_to_accept
                 trades_accept_loop_count=0
                 while True:
+                    # breakpoint()
                     if trades_accept_loop_count>8:
                         print(f"trades_accept looped more than {trades_accept_loop_count} times. Stop for this check.")
                         return
@@ -370,7 +372,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                                 trade_url = trade.get('trade_url')      # Получаем trade_url
                                 trade_state = trade.get('state')        # Получаем состояние трейда
                                 if trade_id and seller_id and buyer_id and asset_id:
-                                    print(f"Trade {trade_id} is a sold trade.")
+                                    print(f"Trade {trade_id} is a sell trade.")
                                     # continue#debug
 
                                     print(f"Accepting trade {trade_id}...")
@@ -395,8 +397,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                         print(f"Unexpected trades list format: {type(trades_list_sell)}")
                 
                 await asyncio.sleep(25)
-            
-            trades_list_sell_accepted=list(filter(lambda c: c.get('accepted_at'), await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)))
+            # breakpoint()
+            trades_list_sell_accepted=list(filter(lambda c: c.get('accepted_at') and not c.get('verify_sale_at'), await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)))
             if trades_list_sell_accepted:
                 for i in range(len(trades_list_sell_accepted)):
                     if i not in index_excluded:
@@ -409,7 +411,10 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                         # print(index_excluded)
                 # print(offer_maker)
             else:
+                # breakpoint()
+                print(f"No actionable sell trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
                 return None
+            # breakpoint()
             retryCount=0
             while True:
                 try:
@@ -423,7 +428,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                     print(f"Other error occurred while fetching Steam trade offers sent: {err}")
                 retryCount+=1
                 if retryCount >5:
-                    print("Failed too many times.")
+                    print(f"Failed too many times. Waiting for {check_interval_seconds} seconds before next check.")
                     return None
                 await asyncio.sleep(5)
             for omi in range(len(offer_maker)):
@@ -524,7 +529,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                         
                         # print(f"seller_id {type(seller_id)} my_steam_id {type(my_steam_id)}")
                         if seller_id !=my_steam_id:
-                            print(f"Trade {trade_id} is not a sold trade, skipping.")
+                            print(f"Trade {trade_id} is not a sell trade, skipping.")
                             continue
 
                         """
@@ -536,8 +541,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                         """
 
                         if trade_id and seller_id and buyer_id and asset_id:
-                            print(f"Trade {trade_id} is a sold trade, proceeding.")
-                            # print(f"Trade {trade_id} is a sold trade.")
+                            print(f"Trade {trade_id} is a sell trade, proceeding.")
+                            # print(f"Trade {trade_id} is a sell trade.")
                             # continue#debug wip retry if confirm failed
 
                             if accepted_at:
@@ -566,10 +571,10 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
             else:
                 print(f"Unexpected trade maker list format: {type(offer_maker)}")
         else:
-            print(f"No actionable sold trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
-        print(f"No actionable trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
+            print(f"No actionable sell trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
+        print(f"No actionable sell trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
     else:
-        print(f"No actionable trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
+        print(f"No actionable sell trades at the moment. Waiting for {check_interval_seconds} seconds before next check.")
 def any2bool(v):
   return str(v).lower() in ("yes", "true", "t", "1")
 def readConfigValue(configJson,jsonKey):
@@ -598,10 +603,12 @@ async def main():
     if check_interval_seconds_random:
         check_interval_seconds_random_min=config.get('check_interval_seconds_random_min') # converting to 'decimal.Decimal' causes the problem.
         check_interval_seconds_random_max=config.get('check_interval_seconds_random_max')
-        if check_interval_seconds_random_min>check_interval_seconds_random_max:
+        if not check_interval_seconds_random_min or not check_interval_seconds_random_max:
             check_interval_seconds_random=False
-            print(f"Error: \"check_interval_seconds_random_min\" is greater than \"check_interval_seconds_random_max\". Restoring default check interval value.")
-    # check_interval_seconds=config.get('check_interval_seconds')
+            print("Error: Value invalid of \"check_interval_seconds_random_min\" or \"check_interval_seconds_random_max\". Restoring default check interval value.")
+        elif check_interval_seconds_random_min>check_interval_seconds_random_max:
+            check_interval_seconds_random=False
+            print("Error: \"check_interval_seconds_random_min\" is greater than \"check_interval_seconds_random_max\". Restoring default check interval value.")
     # check_interval_seconds=Decimal(config.get('check_interval_seconds'))
     check_interval_seconds=config.get('check_interval_seconds')
     if not check_interval_seconds:
@@ -653,6 +660,9 @@ async def main():
                     # breakpoint()
                     check_interval_seconds=round(random.uniform(check_interval_seconds_random_min, check_interval_seconds_random_max),4)
                 # print(f"check_interval_seconds: {check_interval_seconds} {type(check_interval_seconds)}")
+                if check_interval_seconds<300:
+                    check_interval_seconds=300
+                    print("Minimum check interval is 300 seconds. Setting 'check_interval_seconds' to 300.")
                 await check_actionable_trades(
                     session,
                     csfloat_api_key,
