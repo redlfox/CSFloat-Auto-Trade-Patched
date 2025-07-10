@@ -383,7 +383,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
 
                                     else:
                                         print(f"Failed to accept trade {trade_id}")
-                            await asyncio.sleep(0.23) #0.23
+                            await asyncio.sleep(0.19) #0.23
                         if not trades_list_sell_to_accept_processing:
                             print("All accetable trade accepted.")
                             break        
@@ -394,7 +394,7 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                     else:
                         print(f"Unexpected trades list format: {type(trades_list_sell)}")
                 
-                await asyncio.sleep(25)
+                await asyncio.sleep(1)
             # breakpoint()
             trades_list_sell_accepted=list(filter(lambda c: c.get('accepted_at') and not c.get('verify_sale_at'), await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)))
             if trades_list_sell_accepted:
