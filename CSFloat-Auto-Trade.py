@@ -30,8 +30,9 @@ from aiosteampy.constants import (
 
 # Constants for API endpoints
 API_USER_INFO = "https://csfloat.com/api/v1/me"
-API_TRADES = "https://csfloat.com/api/v1/me/trades?state=queued,pending&limit=500"
+API_TRADES = "https://csfloat.com/api/v1/me/trades?state=queued,pending&limit=3000"
 API_ACCEPT_TRADE = "https://csfloat.com/api/v1/trades/{trade_id}/accept"  # Define the accept trade endpoint
+API_ACCEPT_TRADES_BULK = "https://csfloat.com/api/v1/trades/bulk/accept"  # Define the bulk accept trades endpoint
 
 # Path to a file to save cookies, will be created at end of a script run if do not exist
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -49,8 +50,31 @@ def load_steam_config(config_path=rf"{SCRIPT_DIR}/steam.json"):
     with open(config_path, 'r') as file:
         return json.load(file)
     
+async def network_request_retry_template(methodToRun,actoinMessageErr,retryCountMax:int,retryWaitTime:float|int):
+    actoinMessageErr=str(actoinMessageErr)
+    retryCount=0
+    while True:
+        try:
+            methodToRun()
+            return
+        except aiohttp.ClientResponseError as http_err:
+            print(f"HTTP error occurred while {actoinMessageErr}: {http_err}")
+        except ConnectionError as connect_err:
+            print(f"connection error occurred while {actoinMessageErr}: {connect_err}")
+        except Exception as err:
+            print(f"Other error occurred while {actoinMessageErr}: {err}")
+        retryCount+=1
+        if retryCount >retryCountMax:
+            print("Failed too many times.")
+            return None
+        await asyncio.sleep(retryWaitTime)
+async def restore_from_cookies_prompt(cookies: JSONABLE_COOKIE_JAR, steam_client: "SteamClientBase"):
+    await restore_from_cookies(cookies, steam_client)
+    print("Restored Steam session from the cookie file.")
+    print(f"Loaded Steam account: {steam_client.username}")
+    return
 async def restore_from_cookies_retry(cookies: JSONABLE_COOKIE_JAR, steam_client: "SteamClientBase"):
-    try_count=0
+    retryCount=0
     while True:
         try:
             await restore_from_cookies(cookies, steam_client)
@@ -63,14 +87,14 @@ async def restore_from_cookies_retry(cookies: JSONABLE_COOKIE_JAR, steam_client:
             print(f"connection error occurred while restoring the Steam session from cookies: {connect_err}")
         except Exception as err:
             print(f"Other error occurred while restoring the Steam session from cookies: {err}")
-        try_count+=1
-        if try_count >5:
+        retryCount+=1
+        if retryCount >5:
             print("Failed too many times.")
             return None
         await asyncio.sleep(5)
 
 async def steam_client_login_retry(steam_client: "SteamClientBase"):
-    try_count=0
+    retryCount=0
     while True:
         try:
             await steam_client.login()
@@ -82,14 +106,14 @@ async def steam_client_login_retry(steam_client: "SteamClientBase"):
             print(f"connection error occurred while logging in to Steam: {connect_err}")
         except Exception as err:
             print(f"Other error occurred while logging in to Steam: {err}")
-        try_count+=1
-        if try_count >5:
+        retryCount+=1
+        if retryCount >5:
             print("Failed too many times.")
             return None
         await asyncio.sleep(5)
         
 async def confirm_trade_offer_retry(steam_client: "SteamClientBase", obj: int | TradeOffer):
-    try_count=0
+    retryCount=0
     while True:
         try:
             print(f"Confirming trade offer {obj}.")
@@ -101,8 +125,8 @@ async def confirm_trade_offer_retry(steam_client: "SteamClientBase", obj: int | 
             print(f"connection error occurred while confirming the trade offer: {connect_err}")
         except Exception as err:
             print(f"Other error occurred while confirming the trade offer: {err}")
-        try_count+=1
-        if try_count >5:
+        retryCount+=1
+        if retryCount >5:
             print("Failed too many times.")
             return None
         await asyncio.sleep(5)
@@ -137,7 +161,7 @@ async def get_user_info(session, csfloat_api_key):
 
 async def get_trades(session, csfloat_api_key):
     headers = {'Authorization': csfloat_api_key}
-    try_count=0
+    retryCount=0
     while True:
         try:
             async with session.get(API_TRADES, headers=headers) as response:
@@ -151,8 +175,8 @@ async def get_trades(session, csfloat_api_key):
             print(f"connection error occurred while fetching trades: {connect_err}")
         except Exception as err:
             print(f"Other error occurred while fetching trades: {err}")
-        try_count+=1
-        if try_count >5:
+        retryCount+=1
+        if retryCount >5:
             return None
         await asyncio.sleep(5)
 
@@ -174,13 +198,40 @@ async def accept_trade(session, csfloat_api_key, trade_id, trade_token):
                 return False
             result = await response.json()
 
-            return True
+            return result
     except aiohttp.ClientResponseError as http_err:
         print(f"HTTP error occurred while accepting trade {trade_id}: {http_err}")
     except ConnectionError as connect_err:
-        print(f"connection error occurred while accepting trade: {connect_err}")
+        print(f"connection error occurred while accepting trade {trade_id}: {connect_err}")
     except Exception as err:
         print(f"Other error occurred while accepting trade {trade_id}: {err}")
+    return False
+
+async def accept_trades_bulk(session, csfloat_api_key, trade_ids: list[str]):
+    url = API_ACCEPT_TRADES_BULK
+    headers = {
+        'Authorization': csfloat_api_key,
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        "trade_ids": trade_ids
+    }
+    try:
+        async with session.post(url, headers=headers, json=payload) as response:
+            if response.status != 200:
+                # Логирование подробностей ошибки
+                error_detail = await response.text()
+                print(f"Failed to accept trades. Status: {response.status}, Detail: {error_detail}")
+                return False
+            result = await response.json()
+
+            return result
+    except aiohttp.ClientResponseError as http_err:
+        print(f"HTTP error occurred while accepting trades: {http_err}")
+    except ConnectionError as connect_err:
+        print(f"connection error occurred while accepting trades: {connect_err}")
+    except Exception as err:
+        print(f"Other error occurred while accepting trades: {err}")
     return False
 
 async def csfloat_send_steam_trade(client: SteamClient, trade_id, buyer_steam_id=None, trade_url=None, asset_id=None, trade_token=None):
@@ -328,6 +379,7 @@ async def get_actionable_trades_sell(session, csfloat_api_key,my_steam_id):
 async def check_actionable_trades(session, csfloat_api_key, client: MySteamClient, shared_secret, identity_secret, processed_trades, check_interval_seconds,my_steam_id):
     user_info = await get_user_info(session, csfloat_api_key)
     # print(user_info)#debug
+    # await get_trades(session, csfloat_api_key)#debug
         
     if user_info and user_info.get('actionable_trades', 0) > 0:
         print("Unfinished trades found, fetching trade details...")
@@ -360,30 +412,42 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                             break
 
                     if isinstance(trades_list_sell_to_accept, list):
+                        trade_ids_to_accept=[]
                         for trade in trades_list_sell_to_accept:
                             if isinstance(trade, dict):
                                 trade_id = trade.get('id')
-                                seller_id = int(trade.get('seller_id'))  # ID отправителя
-                                buyer_id = int(trade.get('buyer_id'))    # ID получателя
-                                asset_id = trade.get('contract', {}).get('item', {}).get('asset_id')
-                                trade_token = trade.get('trade_token')  # Получаем trade_token
-                                trade_url = trade.get('trade_url')      # Получаем trade_url
-                                trade_state = trade.get('state')        # Получаем состояние трейда
-                                if trade_id and seller_id and buyer_id and asset_id:
-                                    print(f"Trade {trade_id} is a sell trade.")
-                                    # continue#debug
+                                trade_ids_to_accept.append(str(trade_id))
+                            #     trade_id = trade.get('id')
+                            #     seller_id = int(trade.get('seller_id'))  # ID отправителя
+                            #     buyer_id = int(trade.get('buyer_id'))    # ID получателя
+                            #     asset_id = trade.get('contract', {}).get('item', {}).get('asset_id')
+                            #     trade_token = trade.get('trade_token')  # Получаем trade_token
+                            #     trade_url = trade.get('trade_url')      # Получаем trade_url
+                            #     trade_state = trade.get('state')        # Получаем состояние трейда
+                            #     if trade_id and seller_id and buyer_id and asset_id:
+                            #         print(f"Trade {trade_id} is a sell trade.")
+                            #         # continue#debug
 
-                                    print(f"Accepting trade {trade_id}...")
-                                    accept_result = await accept_trade(session, csfloat_api_key, trade_id=str(trade_id), trade_token=trade_token)
+                            #         print(f"Accepting trade {trade_id}...")
+                            #         accept_result = await accept_trade(session, csfloat_api_key, trade_id=str(trade_id), trade_token=trade_token)
 
-                                    if accept_result:
-                                        print(f"Accepted trade {trade_id}...")
-                                        trades_list_sell_to_accept_processing=list(filter(lambda c: c["id"] != trade_id, trades_list_sell_to_accept_processing))
-                                        # print(f"{trades_list_sell_to_accept_processing}")#debug
+                            #         if accept_result:
+                            #             print(f"Accepted trade {trade_id}...")
+                            #             trades_list_sell_to_accept_processing=list(filter(lambda c: c["id"] != trade_id, trades_list_sell_to_accept_processing))
+                            #             # print(f"{trades_list_sell_to_accept_processing}")#debug
 
-                                    else:
-                                        print(f"Failed to accept trade {trade_id}")
-                            await asyncio.sleep(0.19) #0.23
+                            #         else:
+                            #             print(f"Failed to accept trade {trade_id}")
+                            # await asyncio.sleep(0.19) #0.23
+                        await asyncio.sleep(round(random.uniform(6, 11),4))
+                        accept_result = await accept_trades_bulk(session, csfloat_api_key, trade_ids=trade_ids_to_accept)
+                        if accept_result: # wip cancel trades if can't send trade offers
+                            print(f"Accepted trades.")
+                            for ati in trade_ids_to_accept:
+                                trades_list_sell_to_accept_processing=list(filter(lambda c: c["id"] != str(ati), trades_list_sell_to_accept_processing))
+                            # print(f"{trades_list_sell_to_accept_processing}")#debug
+                        else:
+                            print(f"Failed to accept trade {trade_id}")
                         if not trades_list_sell_to_accept_processing:
                             print("All accetable trade accepted.")
                             break        
@@ -393,8 +457,8 @@ async def check_actionable_trades(session, csfloat_api_key, client: MySteamClien
                             print(f"Can't accept all trades. Retrying: {trades_accept_loop_count}.")
                     else:
                         print(f"Unexpected trades list format: {type(trades_list_sell)}")
-                
-                await asyncio.sleep(1)
+                    await asyncio.sleep(1)
+                await asyncio.sleep(round(random.uniform(6, 11),4))
             # breakpoint()
             trades_list_sell_accepted=list(filter(lambda c: c.get('accepted_at') and not c.get('verify_sale_at'), await get_actionable_trades_sell(session, csfloat_api_key,my_steam_id)))
             if trades_list_sell_accepted:
@@ -617,18 +681,30 @@ async def main():
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
     print(f"User agent: {user_agent}")
     # breakpoint()
-    client = MySteamClient(
+    client = SteamClient(
         steam_id=steam_id,              # Steam ID64 как целое число
         username=steam_login,
         password=steam_password,
         shared_secret=shared_secret,
         identity_secret=identity_secret,
         api_key=steam_api_key,          # Передача API ключа
-        user_agent=user_agent,
+        user_agent=user_agent
     )
     if client_proxy and steam_use_proxy:
-        MySteamClient.proxy=client_proxy
+        # client.api_key=steam_api_key
+        # client.proxy=client_proxy
+        client = SteamClient(
+            steam_id=steam_id,              # Steam ID64 как целое число
+            username=steam_login,
+            password=steam_password,
+            shared_secret=shared_secret,
+            identity_secret=identity_secret,
+            api_key=steam_api_key,          # Передача API ключа
+            user_agent=user_agent,
+            proxy=client_proxy
+        )
         print("steam proxy true")
+        # print(client.user_agent)
         # print(client.proxy)
     else:
         print("steam proxy false")
@@ -653,7 +729,6 @@ async def main():
         resolver=aiohttp.resolver.AsyncResolver(),
         limit_per_host=50
     )
-    
     async with aiohttp.ClientSession(connector=sessionConnector) as session:
         try:
             while True:
